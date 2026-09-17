@@ -2,3 +2,7 @@ streamlit
 pandas
 matplotlib
 statsmodels
+finance
+numpy
+shap
+tabulate
