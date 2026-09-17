@@ -2,7 +2,7 @@ streamlit
 pandas
 matplotlib
 statsmodels
-finance
+yfinance
 numpy
 shap
 tabulate
