@@ -3,11 +3,12 @@ import pandas as pd
 import numpy as np 
 import matplotlib
 import matplotlib.pyplot as plt 
-#matplotlib.use("TkAgg") 
+matplotlib.use("TkAgg") 
 import matplotlib.dates as mdates 
 import yfinance as yf 
 import shap 
 import tabulate
+
 
 """
 SHAPVER: The Quantitative-Visual 
@@ -17,20 +18,6 @@ Its beginner-friendly visuals allow users to glance at a graph rooted in statist
 """
 
 def main():
-    st.title("SHAPVER: The Quantitative-Visual")
-    st.markdown("""
-    **Axiomatic attribution** is excellent when it comes to assigning weight to specific financial indicators. 
-    Its beginner-friendly visuals allow users to glance at a graph rooted in statistics to see which factor triggered the trade.
-    """)
-
-    # a) Bridging the classes + objects together
-    with st.spinner("Downloading financial data & calculating indices..."):
-        Ticker_Groups, full_data, fundamentals = compile() 
-
-    if full_data is None:
-        st.error("Failed to load market data.")
-        return
-        
     # 1) Bridging the classes + objects together
     Ticker_Groups, full_data, fundamentals = compile() 
 
@@ -49,35 +36,19 @@ def main():
     rsi_data = mc.rsi_calc(group_close_data, period = 14)
     signals = mc.mean_reversion_signal(percent_b, rsi_data)
     group_fundamentals = mc.calculate_group_fundamentals(Ticker_Groups, fundamentals)
- 
+
     future_check = group_close_data.shift(-4) > group_close_data #did price go up after 4 weeks?
     buy_cols = [c for c in signals.columns if "_Buy" in c] #extract only buy signal results
     win_results = future_check.values[signals[buy_cols].values]
     win_results = win_results[~pd.isnull(win_results)] #ignores empty data point
     print(f"Algorithm Accuracy (Win Ratio): {np.mean(win_results):.2%}")
 
-    # b) Display Win Ratio in Streamlit
-    st.metric(label="Algorithm Accuracy (Win Ratio)", value=f"{np.mean(win_results):.2%}")
+    mv.combined_visual_close(group_close_data, bb_mid, bb_upper, bb_lower, signals, xai, percent_b, rsi_data, group_fundamentals)
 
-    # c) Generate and display the main matplotlib figure
-    fig = mv.combined_visual_close(group_close_data, bb_mid, bb_upper, bb_lower, signals, xai, percent_b, rsi_data, group_fundamentals)
-    
-    st.subheader("Triathlon Strategy: Bollinger + RSI Scanner")
-    st.pyplot(fig)
-      
-    st.subheader("Recent Signal Status")
-    st.dataframe(signals.tail())
+    print(signals.tail())
 
-    # Glossary / Data Table for Streamlit
-    st.subheader("Glossary - Triathlon Strategy")
-    glossary_data = [
-        ["Financial Risk", "Debt-to-Equity", "Compares total liabilities with shareholder equity to indicate reliance on debt."],
-        ["Business Quality", "Net Profit Margin", "Indicates bottom-line profit retained for each dollar of revenue."],
-        ["Market Uncertainty", "Bollinger Band Width", "3 lines encompassing 95% of stock price to indicate volatility."],
-        ["Positioning", "%B (price location)", "Where the stock is within the bollinger band."]
-    ]
-    glossary_df = pd.DataFrame(glossary_data, columns=["Cognitive Concept", "Ratio/Metric", "The 'Because' logic"])
-    st.table(glossary_df)
+    # Displaying graph
+    plt.show()
 
 def compile():
     # prep for group_closing_prices_calc
@@ -141,10 +112,10 @@ class metricCalc:
 
     def single_return_prices_calc(self, single_close_data):
         return single_close_data.pct_change() #the percent aletration between the closing prices are the return prices
-        
+
     def group_return_prices_calc(self, group_close_data): #we already did the looping work in group_close_data
         return group_close_data.pct_change()
-    
+
     #lookback for 8wk, the short time good for algo trading -v       v----num_std refers to the width of bollinger bands
     def bollinger_bands_calc(self, group_close_data, window = 8, num_std = 1.5): #developing our startegy
         rolling_mean = group_close_data.rolling(window).mean() #get average 
@@ -152,7 +123,7 @@ class metricCalc:
         upper_band = rolling_mean + num_std * rolling_std 
         lower_band = rolling_mean - num_std * rolling_std
         return rolling_mean, upper_band, lower_band
-        
+
     def bollinger_features_calc(self, group_close_data, bb_mid, bb_upper, bb_lower):
         percent_b = (group_close_data - bb_lower) / (bb_upper - bb_lower) # tells exactly where price is located in bands
         band_width = (bb_upper - bb_lower) / bb_mid #finds the range of bollinger bands to see volatility 
@@ -227,7 +198,7 @@ class metricVisuals:
     def combined_visual_close(self, group_close_data, bb_mid, bb_upper, bb_lower, signals, xai, percent_b, rsi_data, group_fundamentals):
         plt.style.use("dark_background") #adds professional look
         fig, ax = plt.subplots(figsize=(12, 7))
-        
+
         colors = {"The Swim Average": "white", "The Bike Average": "#FFFFE0", "The Run Average": "#ADD8E6"} 
 
         for target in group_close_data.columns:
@@ -256,7 +227,7 @@ class metricVisuals:
             linewidth = 2.0,
             zorder = 50
             )
-        
+
         scan_text = ax.text(
             0.012, 0.79, 
             "Move mouse to scan", 
@@ -271,7 +242,7 @@ class metricVisuals:
         def mover(event):
             if event.inaxes == ax: #checks if mouse on graph
                 x_val = event.xdata #time
-                
+
                 idx = mdates.date2num(group_close_data.index) #dates become x-axis
                 distance = np.abs(idx - x_val) #distance between mouse at point and every position
                 idx_num = np.argmin(distance) #return index position
@@ -299,7 +270,7 @@ class metricVisuals:
             #SHAP extension
             if event.inaxes == ax: #checks if mouse on graph
                 x_val = event.xdata #time
-                
+
                 idx = mdates.date2num(group_close_data.index) #dates become x-axis
                 distance = np.abs(idx - x_val) #distance between mouse at point and every position
                 idx_num = np.argmin(distance) #return index position
@@ -346,8 +317,6 @@ class metricVisuals:
         print("GLOSSARY - TRIATHLON STRATEGY")
         print(tabulate.tabulate(data, headers = headers, tablefmt = "grid"))
         print("="*80 + "\n")
-
-        return fig
 
 if __name__ == "__main__":
     main()
