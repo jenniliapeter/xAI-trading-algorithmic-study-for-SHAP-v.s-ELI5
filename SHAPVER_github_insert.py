@@ -1,3 +1,4 @@
+import streamlit as st #letters used to showcase components
 import pandas as pd 
 import numpy as np 
 import matplotlib
@@ -16,6 +17,20 @@ Its beginner-friendly visuals allow users to glance at a graph rooted in statist
 """
 
 def main():
+    st.title("SHAPVER: The Quantitative-Visual")
+    st.markdown("""
+    **Axiomatic attribution** is excellent when it comes to assigning weight to specific financial indicators. 
+    Its beginner-friendly visuals allow users to glance at a graph rooted in statistics to see which factor triggered the trade.
+    """)
+
+    # a) Bridging the classes + objects together
+    with st.spinner("Downloading financial data & calculating indices..."):
+        Ticker_Groups, full_data, fundamentals = compile() 
+
+    if full_data is None:
+        st.error("Failed to load market data.")
+        return
+        
     # 1) Bridging the classes + objects together
     Ticker_Groups, full_data, fundamentals = compile() 
 
@@ -41,12 +56,28 @@ def main():
     win_results = win_results[~pd.isnull(win_results)] #ignores empty data point
     print(f"Algorithm Accuracy (Win Ratio): {np.mean(win_results):.2%}")
 
-    mv.combined_visual_close(group_close_data, bb_mid, bb_upper, bb_lower, signals, xai, percent_b, rsi_data, group_fundamentals)
-    
-    print(signals.tail())
+    # b) Display Win Ratio in Streamlit
+    st.metric(label="Algorithm Accuracy (Win Ratio)", value=f"{np.mean(win_results):.2%}")
 
-    # Displaying graph
-    plt.show()
+    # c) Generate and display the main matplotlib figure
+    fig = mv.combined_visual_close(group_close_data, bb_mid, bb_upper, bb_lower, signals, xai, percent_b, rsi_data, group_fundamentals)
+    
+    st.subheader("Triathlon Strategy: Bollinger + RSI Scanner")
+    st.pyplot(fig)
+      
+    st.subheader("Recent Signal Status")
+    st.dataframe(signals.tail())
+
+    # Glossary / Data Table for Streamlit
+    st.subheader("Glossary - Triathlon Strategy")
+    glossary_data = [
+        ["Financial Risk", "Debt-to-Equity", "Compares total liabilities with shareholder equity to indicate reliance on debt."],
+        ["Business Quality", "Net Profit Margin", "Indicates bottom-line profit retained for each dollar of revenue."],
+        ["Market Uncertainty", "Bollinger Band Width", "3 lines encompassing 95% of stock price to indicate volatility."],
+        ["Positioning", "%B (price location)", "Where the stock is within the bollinger band."]
+    ]
+    glossary_df = pd.DataFrame(glossary_data, columns=["Cognitive Concept", "Ratio/Metric", "The 'Because' logic"])
+    st.table(glossary_df)
 
 def compile():
     # prep for group_closing_prices_calc
@@ -315,6 +346,8 @@ class metricVisuals:
         print("GLOSSARY - TRIATHLON STRATEGY")
         print(tabulate.tabulate(data, headers = headers, tablefmt = "grid"))
         print("="*80 + "\n")
+
+        return fig
 
 if __name__ == "__main__":
     main()
