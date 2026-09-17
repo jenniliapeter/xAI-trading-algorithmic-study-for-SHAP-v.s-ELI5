@@ -1,8 +1,0 @@
-streamlit
-pandas
-matplotlib
-statsmodels
-yfinance
-numpy
-shap
-tabulate
